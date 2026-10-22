@@ -521,7 +521,7 @@ const FIREBASE_STORAGE_BUCKET = "";   // cth: nama-project.appspot.com
 const FIREBASE_API_KEY = "";          // Web API Key (belum wajib dipakai)
 
 const DB_PATH = "axfc";               // root data (kompatibel dengan data versi lama)
-const APP_VER = "v2.1";
+const APP_VER = "v2.2";
 const DEFAULT_IURAN = 20000;
 
 const KAT_MASUK  = ['Iuran Bulanan','Saldo Awal','Donasi','Sponsor','Penjualan Merchandise','Denda','Lainnya'];
@@ -710,7 +710,12 @@ function compressImage(file,maxDim=1280,q=.82){
 }
 async function uploadFile(file,folder){
   if(!file) return null;
-  if(!FIREBASE_STORAGE_BUCKET) throw new Error('Storage belum dikonfigurasi');
+  if(!FIREBASE_STORAGE_BUCKET){
+    /* Tanpa Storage: kompres kecil lalu simpan sebagai data-URL langsung di database */
+    const dim=/profil/.test(folder)?360:/mobil/.test(folder)?800:900, q=/profil/.test(folder)?.72:.7;
+    const b=await compressImage(file,dim,q);
+    return await new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=()=>rej(new Error('Baca foto gagal')); r.readAsDataURL(b); });
+  }
   const blob=await compressImage(file);
   const name=encodeURIComponent(`${folder}/${uid()}.jpg`);
   const r=await fetch(`https://firebasestorage.googleapis.com/v0/b/${FIREBASE_STORAGE_BUCKET}/o?name=${name}`,{method:'POST',headers:{'Content-Type':blob.type||'image/jpeg'},body:blob});
@@ -907,7 +912,7 @@ async function saveMember(){
   await guard(async()=>{
     state.members[id]=m; await fbSet('members/'+id,m);
     logAktivitas(editId?'ubah':'tambah', editId?`Data anggota ${nama} diperbarui`:`Anggota baru: ${nama} (${m.jabatan})`);
-    closeModal('memberBg'); renderAll(); toast(ui.uploadFailed?'Data tersimpan, tapi foto gagal diupload (cek Storage)':(editId?'Anggota diperbarui':'Anggota ditambahkan'));
+    closeModal('memberBg'); renderAll(); toast(ui.uploadFailed?'Data tersimpan, tapi foto gagal diupload (coba lagi)':(editId?'Anggota diperbarui':'Anggota ditambahkan'));
   });
   btn.disabled=false; btn.textContent='Simpan';
 }
@@ -1003,7 +1008,7 @@ async function saveTx(){
       const rec={status:total>=tgt?'lunas':'sebagian',jumlah:total,target:tgt,tanggal:tx.tanggal,txIds:[...(old?.txIds||(old?.txId?[old.txId]:[])),id]};
       state.iuran[bulan]=state.iuran[bulan]||{}; state.iuran[bulan][mid]=rec; await fbSet(`iuran/${bulan}/${mid}`,rec); }
     logAktivitas('tambah',`${jenis==='masuk'?'Pemasukan':'Pengeluaran'} ${rupiah(jumlah)} — ${ket}`);
-    closeModal('txBg'); renderAll(); toast(ui.uploadFailed?'Tersimpan, tapi bukti gagal diupload (cek Storage)':'Transaksi tersimpan');
+    closeModal('txBg'); renderAll(); toast(ui.uploadFailed?'Tersimpan, tapi bukti gagal diupload (coba lagi)':'Transaksi tersimpan');
   });
   btn.disabled=false; btn.textContent='Simpan';
 }
@@ -1102,7 +1107,7 @@ async function saveFoto(){
   try{
     const url=await uploadFile(file,'axfc-foto'), id=uid(), f={url,caption:$('fCaption').value.trim(),tanggal:$('fTgl').value||todayStr(),oleh:actor()}; if($('fKeg').value) f.kegiatanId=$('fKeg').value;
     state.foto[id]=f; await fbSet('foto/'+id,f); logAktivitas('tambah',`Foto diupload${f.caption?': '+f.caption:''}`); closeModal('fotoBg'); renderAll(); toast('Foto berhasil diupload');
-  }catch(e){ console.error(e); toast('Gagal upload foto. Cek konfigurasi Storage.'); }
+  }catch(e){ console.error(e); toast('Gagal menyimpan foto, coba lagi.'); }
   btn.disabled=false; btn.textContent='Upload';
 }
 async function deleteFoto(id){
