@@ -276,6 +276,7 @@
   #splash .sp-pri{background:#fff;color:#0b8a7c;box-shadow:0 10px 26px rgba(0,60,50,.28);margin-bottom:11px;}
   #splash .sp-sec{background:rgba(255,255,255,.16);color:#fff;border:1.5px solid rgba(255,255,255,.55);}
   #splash .sp-foot{margin-top:22px;font-size:11px;font-weight:600;opacity:.8;}
+  .mcard{position:relative;} .medit{position:absolute;top:8px;right:8px;z-index:2;border:0;border-radius:999px;background:rgba(255,255,255,.95);color:#0b8a7c;font:inherit;font-size:11.5px;font-weight:800;padding:6px 11px;box-shadow:0 3px 10px rgba(0,60,50,.25);cursor:pointer;}
 </style>
 </head>
 <body>
@@ -386,7 +387,7 @@
     </div>
     <div class="scroll-x"><table class="mx" id="iuranTable"></table></div>
     <div class="legend"><span><i style="background:#e0f5ec"></i>✓ Lunas</span><span><i style="background:#ffeadb"></i>½ Baru sebagian</span><span><i style="background:#fff3dc"></i>• Bulan berjalan</span><span><i style="background:#fdeceb"></i>! Menunggak</span><span><i style="background:#f3f6f5"></i>Belum jatuh tempo</span></div>
-    <p class="hint admin-only" style="margin-top:10px;">Pengurus: ketuk kotak bulan untuk menandai lunas — otomatis tercatat sebagai pemasukan di Kas. Ketuk kotak ✓ untuk membatalkan, atau kotak ½ untuk melunasi sisanya.</p>
+    <p class="hint admin-only" style="margin-top:10px;">Pengurus: catat iuran lewat <b>Kas → + Pemasukan</b> (pilih nama anggota &amp; bulan) — otomatis masuk matriks ini dan ada riwayatnya. Ketuk kotak kosong/½ sebagai jalan pintas ke form itu; ketuk kotak ✓ untuk melihat riwayat bayarnya.</p>
   </div>
 
   <!-- KAS -->
@@ -562,7 +563,7 @@ const FIREBASE_STORAGE_BUCKET = "";   // cth: nama-project.appspot.com
 const FIREBASE_API_KEY = "";          // Web API Key (belum wajib dipakai)
 
 const DB_PATH = "axfc";               // root data (kompatibel dengan data versi lama)
-const APP_VER = "v2.4";
+const APP_VER = "v2.5";
 const DEFAULT_IURAN = 20000;
 
 const KAT_MASUK  = ['Iuran Bulanan','Saldo Awal','Donasi','Sponsor','Penjualan Merchandise','Denda','Lainnya'];
@@ -736,7 +737,7 @@ function yearStats(y){
 }
 function kegStatus(k){ if(k.status==='batal') return {t:'Dibatalkan',c:'bad'}; if((k.tanggal||'')<todayStr()) return {t:'Selesai',c:'gray'}; if(k.tanggal===todayStr()) return {t:'Hari ini',c:'warn'}; return {t:'Mendatang',c:'info'}; }
 const realisasi = kid => sum(txArr().filter(t=>t.kegiatanId===kid && t.jenis!=='masuk').map(t=>t.jumlah));
-function avatar(m,cls=''){ return m.fotoProfil ? `<img class="av ${cls}" src="${esc(m.fotoProfil)}" alt="" loading="lazy">` : `<span class="av ${cls}">${esc(initials(m.nama))}</span>`; }
+function avatar(m,cls='',zoom=false){ return m.fotoProfil ? `<img class="av ${cls}" src="${esc(m.fotoProfil)}" alt="" loading="lazy"${zoom?` style="cursor:zoom-in" data-url="${esc(m.fotoProfil)}" onclick="event.stopPropagation();viewImage(this.dataset.url,'${esc(m.nama).replace(/'/g,"\\'")}')"`:''}>` : `<span class="av ${cls}">${esc(initials(m.nama))}</span>`; }
 
 /* ---------------- images ---------------- */
 function compressImage(file,maxDim=1280,q=.82){
@@ -907,8 +908,8 @@ function renderAnggota(){
   $('memberEmpty').style.display=list.length?'none':'block';
   $('memberGrid').innerHTML=list.map(m=>{ const a=arrears(m);
     const tag = m.status==='nonaktif' ? '<span class="tag gray">Nonaktif</span>' : a.n===0 ? '<span class="tag ok">Iuran lancar</span>' : `<span class="tag ${a.n>=3?'bad':'warn'}">Tunggak ${a.n} bln</span>`;
-    return `<div class="mcard" onclick="openMemberDetail('${m.id}')"><div class="mcar">${m.fotoMobil?`<img src="${esc(m.fotoMobil)}" alt="" loading="lazy">`:'🚗'}${m.plat?`<span class="plate">${esc(m.plat)}</span>`:''}</div>
-      <div class="mbody">${avatar(m)}<div class="mname">${esc(m.nama)}</div><div class="mmeta">${esc(m.noAnggota||'-')} • ${esc(m.tipe||'-')}</div>
+    return `<div class="mcard" onclick="openMemberDetail('${m.id}')"><button class="medit admin-only" title="Edit profil" onclick="event.stopPropagation();openMemberModal('${m.id}')">✏️ Edit</button><div class="mcar">${m.fotoMobil?`<img src="${esc(m.fotoMobil)}" alt="" loading="lazy">`:'🚗'}${m.plat?`<span class="plate">${esc(m.plat)}</span>`:''}</div>
+      <div class="mbody">${avatar(m,'',true)}<div class="mname">${esc(m.nama)}</div><div class="mmeta">${esc(m.noAnggota||'-')} • ${esc(m.tipe||'-')}</div>
       <div class="mtags"><span class="tag info">${esc(m.jabatan||'Anggota')}</span>${tag}</div></div></div>`; }).join('');
 }
 function openMemberDetail(id){
@@ -919,7 +920,7 @@ function openMemberDetail(id){
   const keg=kegArr().filter(k=>k.status!=='batal'&&(k.tanggal||'')<=todayStr()&&(!joinMonth(m)||(k.tanggal||'').slice(0,7)>=joinMonth(m))), hadir=keg.filter(k=>k.hadir?.[id]).length;
   const wa=(m.hp||'').replace(/\D/g,'').replace(/^0/,'62');
   $('mdBody').innerHTML=`
-    <div style="display:flex;gap:14px;align-items:center;">${avatar(m,'lg')}<div style="min-width:0;"><div style="font-size:18px;font-weight:800;">${esc(m.nama)}</div><div class="row" style="gap:6px;margin-top:6px;"><span class="tag info">${esc(m.jabatan||'Anggota')}</span><span class="tag ${m.status==='nonaktif'?'gray':'ok'}">${m.status==='nonaktif'?'Nonaktif':'Aktif'}</span></div></div></div>
+    <div style="display:flex;gap:14px;align-items:center;">${avatar(m,'lg',true)}<div style="min-width:0;"><div style="font-size:18px;font-weight:800;">${esc(m.nama)}</div><div class="row" style="gap:6px;margin-top:6px;"><span class="tag info">${esc(m.jabatan||'Anggota')}</span><span class="tag ${m.status==='nonaktif'?'gray':'ok'}">${m.status==='nonaktif'?'Nonaktif':'Aktif'}</span></div></div></div>
     ${m.fotoMobil?`<img src="${esc(m.fotoMobil)}" alt="" style="width:100%;max-height:230px;object-fit:cover;border-radius:16px;margin-top:14px;cursor:pointer;" data-url="${esc(m.fotoMobil)}" onclick="viewImage(this.dataset.url,'Mobil ${esc(m.nama)}')">`:''}
     <div class="kv"><div><small>No. Reg</small><b>${esc(m.noAnggota||'-')}</b></div><div><small>Mulai tercatat</small><b>${m.tglGabung?labelBulanPanjang(joinMonth(m)):'-'}${m.tglGabungPerkiraan?' <span style="font-weight:500;color:var(--muted);font-size:11px;">(perkiraan)</span>':''}</b></div>
       <div><small>Mobil</small><b>${esc(m.tipe||'-')}</b></div><div><small>No. Polisi</small><b>${esc(m.plat||'-')}</b></div>
@@ -993,10 +994,14 @@ async function cellClick(mid,k){
   const m=state.members[mid], s=cellState({...m,id:mid},k), b=iuranBayar(k,mid), tgt=iuranTarget(k,mid);
   if(!isAdmin()){ toast(s==='ok'?`${m.nama}: lunas ${labelBulan(k)}`:s==='part'?`${m.nama}: baru ${rupiah(b)} dari ${rupiah(tgt)} (${labelBulan(k)})`:s==='na'?`${m.nama} belum tercatat sebagai anggota`:`${m.nama}: ${labelBulan(k)} belum bayar`); return; }
   if(s==='na') return;
-  if(s==='ok'){ if(!await confirmDialog(`Batalkan iuran ${labelBulan(k)}?`,`${m.nama} akan ditandai belum bayar dan pemasukannya dihapus dari kas.`,'Batalkan')) return; await guard(()=>unmarkIuran(mid,k)); }
-  else if(s==='part'){ const sisa=tgt-b; if(!await confirmDialog(`${m.nama} • ${labelBulan(k)}`,`Baru bayar ${rupiah(b)} dari ${rupiah(tgt)}. Catat pelunasan sisa ${rupiah(sisa)} sekarang?`,'Lunasi sisa',false)) return; await guard(()=>markIuran(mid,k,{jumlah:sisa})); }
-  else await guard(()=>markIuran(mid,k));
-  renderAll();
+  if(s==='ok'){ const h=iuranHistory(mid,k); toast(`${m.nama} • ${labelBulan(k)} lunas${h?' — '+h:''}. Untuk membatalkan, hapus transaksinya di menu Kas.`); return; }
+  /* belum / sebagian: catat lewat form Pemasukan supaya ada riwayat transaksi lengkap */
+  openTxModal('masuk'); $('txMember').value=mid; $('txBulan').value=k; onTxMember();
+  toast(s==='part'?`Sisa iuran ${labelBulan(k)} ${m.nama} sudah diisi — cek lalu simpan`:`Isi tanggal & nominal, lalu simpan`);
+  return;
+}
+function iuranHistory(mid,k){
+  return Object.values(state.transaksi).filter(t=>t.jenis==='masuk' && t.iuranBulan===k && txMember(t)===mid).sort((x,y)=>(x.tanggal||'').localeCompare(y.tanggal||'')).map(t=>`${fmtDate(t.tanggal)} ${rupiah(t.jumlah)}`).join(', ');
 }
 async function markIuran(mid,k,opt={}){
   const m=state.members[mid], old=iuranRec(k,mid), tgt=Number(old?.target)||iuranNominal(), prev=iuranBayar(k,mid), jumlah=opt.jumlah ?? (tgt-prev);
