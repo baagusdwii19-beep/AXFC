@@ -286,7 +286,7 @@
     <img class="sp-logo" id="spLogo" alt="AXFC">
     <h1>AXFC</h1>
     <div class="sp-sub">Avanza Xenia Fans Club<br>Chapter Surabaya</div>
-    <div class="sp-chips"><div class="sp-chip"><b id="spMem">–</b><span>ANGGOTA</span></div><div class="sp-chip"><b id="spSaldo">–</b><span>SALDO KAS</span></div><div class="sp-chip"><b id="spPct">–</b><span>KEPATUHAN</span></div></div>
+    <div class="sp-chips"><div class="sp-chip"><b id="spMem">–</b><span>ANGGOTA</span></div><div class="sp-chip"><b id="spPct">–</b><span>KEPATUHAN</span></div></div>
     <button class="sp-btn sp-pri" onclick="splashLogin()">🔐 Masuk sebagai Pengurus</button>
     <button class="sp-btn sp-sec" onclick="closeSplash()">👀 Lihat sebagai Anggota</button>
     <div class="sp-foot">Kas • Iuran • Kegiatan • Galeri — transparan untuk semua</div>
@@ -562,7 +562,7 @@ const FIREBASE_STORAGE_BUCKET = "";   // cth: nama-project.appspot.com
 const FIREBASE_API_KEY = "";          // Web API Key (belum wajib dipakai)
 
 const DB_PATH = "axfc";               // root data (kompatibel dengan data versi lama)
-const APP_VER = "v2.3";
+const APP_VER = "v2.4";
 const DEFAULT_IURAN = 20000;
 
 const KAT_MASUK  = ['Iuran Bulanan','Saldo Awal','Donasi','Sponsor','Penjualan Merchandise','Denda','Lainnya'];
@@ -672,7 +672,7 @@ async function doLogin(){
   } else if(h!==state.settings.pinHash){ toast('PIN salah'); return; }
   session={admin:true,nama}; saveSession(); closeModal('loginBg'); applyMode(); renderAll(); toast(`Halo, ${nama} 👋`);
 }
-function logout(){ session={admin:false,nama:''}; try{ localStorage.removeItem('axfc_sess'); }catch(e){} applyMode(); renderAll(); toast('Keluar dari mode pengurus'); }
+function logout(){ session={admin:false,nama:''}; try{ localStorage.removeItem('axfc_sess'); }catch(e){} try{ sessionStorage.removeItem('axfc_splash'); }catch(e){} applyMode(); renderAll(); showSplash(); }
 function applyMode(){
   document.body.classList.toggle('is-admin', session.admin);
   $('roleName').textContent = session.admin ? session.nama : 'Mode Lihat';
@@ -1260,12 +1260,12 @@ function renderAktivitas(){
 /* ---------------- layar sambutan ---------------- */
 function splashStats(){
   try{ const y=new Date().getFullYear(), ys=yearStats(y);
-    $('spMem').textContent=aktifArr().length; $('spSaldo').textContent=rupiah(totals(txArr()).saldo).replace(/\s/g,'');
+    $('spMem').textContent=aktifArr().length; 
     const p=ys&&ys.pct!=null?ys.pct:(ys&&ys.target?Math.round(ys.collected/ys.target*100):null); $('spPct').textContent=p!=null?p+'%':'–'; }catch(e){}
 }
 function showSplash(){
   if(session.admin) return; try{ if(sessionStorage.getItem('axfc_splash')) return; }catch(e){}
-  $('spLogo').src=$('logoImg').src; $('splash').style.display='flex'; document.body.style.overflow='hidden'; splashStats();
+  $('spLogo').src=$('logoImg').src; $('splash').classList.remove('out'); $('splash').style.display='flex'; document.body.style.overflow='hidden'; splashStats();
 }
 function closeSplash(){ try{ sessionStorage.setItem('axfc_splash','1'); }catch(e){} const sp=$('splash'); sp.classList.add('out'); document.body.style.overflow=''; setTimeout(()=>{ sp.style.display='none'; },460); }
 async function splashLogin(){ await openLogin(); const mo=$('loginBg'); const t=setInterval(()=>{ if(session.admin){ clearInterval(t); closeSplash(); } else if(!mo.classList.contains('active')){ clearInterval(t); } },300); }
