@@ -254,10 +254,44 @@
     #printHead{display:block;margin-bottom:14px;border-bottom:2px solid #0b8a7c;padding-bottom:8px;}
     .card{box-shadow:none;break-inside:avoid;} main{padding:0;}
   }
+
+  /* ---- Layar sambutan / login ---- */
+  #splash{position:fixed;inset:0;z-index:90;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px 22px;color:#fff;text-align:center;overflow:hidden;
+    background:linear-gradient(160deg,#0b8a7c 0%,#0fa392 45%,#5fd6c4 100%);transition:opacity .45s ease,transform .45s ease;}
+  #splash.out{opacity:0;transform:scale(1.04);pointer-events:none;}
+  #splash .blob{position:absolute;border-radius:50%;background:rgba(255,255,255,.13);filter:blur(2px);animation:flt 9s ease-in-out infinite;}
+  #splash .b1{width:300px;height:300px;top:-90px;left:-90px;} #splash .b2{width:220px;height:220px;bottom:-60px;right:-50px;animation-delay:-3s;} #splash .b3{width:120px;height:120px;top:55%;left:70%;animation-delay:-6s;background:rgba(255,255,255,.09);}
+  @keyframes flt{0%,100%{transform:translateY(0) scale(1);}50%{transform:translateY(-22px) scale(1.06);}}
+  #splash .sp-in{position:relative;width:100%;max-width:380px;display:flex;flex-direction:column;align-items:center;animation:spUp .7s cubic-bezier(.2,.8,.2,1) both;}
+  @keyframes spUp{from{opacity:0;transform:translateY(24px);}to{opacity:1;transform:none;}}
+  #splash .sp-logo{width:230px;height:150px;border-radius:26px;object-fit:cover;background:#000;border:4px solid rgba(255,255,255,.85);box-shadow:0 18px 44px rgba(0,60,50,.35),0 0 0 14px rgba(255,255,255,.14);animation:pulse 3.2s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{box-shadow:0 18px 44px rgba(0,60,50,.35),0 0 0 12px rgba(255,255,255,.14);}50%{box-shadow:0 18px 44px rgba(0,60,50,.35),0 0 0 22px rgba(255,255,255,.06);}}
+  #splash h1{margin:30px 0 4px;font-size:34px;font-weight:800;letter-spacing:1px;}
+  #splash .sp-sub{font-size:14px;font-weight:600;opacity:.92;line-height:1.4;}
+  #splash .sp-chips{display:flex;gap:8px;margin:22px 0 26px;flex-wrap:wrap;justify-content:center;}
+  #splash .sp-chip{background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);border-radius:14px;padding:9px 14px;backdrop-filter:blur(6px);min-width:92px;}
+  #splash .sp-chip b{display:block;font-size:16px;font-weight:800;} #splash .sp-chip span{font-size:10.5px;font-weight:600;opacity:.9;letter-spacing:.3px;}
+  #splash .sp-btn{width:100%;border:0;border-radius:16px;padding:15px 18px;font:inherit;font-size:15px;font-weight:800;cursor:pointer;transition:transform .15s;}
+  #splash .sp-btn:active{transform:scale(.97);}
+  #splash .sp-pri{background:#fff;color:#0b8a7c;box-shadow:0 10px 26px rgba(0,60,50,.28);margin-bottom:11px;}
+  #splash .sp-sec{background:rgba(255,255,255,.16);color:#fff;border:1.5px solid rgba(255,255,255,.55);}
+  #splash .sp-foot{margin-top:22px;font-size:11px;font-weight:600;opacity:.8;}
 </style>
 </head>
 <body>
 <div id="topLoad"></div>
+<div id="splash" style="display:none">
+  <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+  <div class="sp-in">
+    <img class="sp-logo" id="spLogo" alt="AXFC">
+    <h1>AXFC</h1>
+    <div class="sp-sub">Avanza Xenia Fans Club<br>Chapter Surabaya</div>
+    <div class="sp-chips"><div class="sp-chip"><b id="spMem">–</b><span>ANGGOTA</span></div><div class="sp-chip"><b id="spSaldo">–</b><span>SALDO KAS</span></div><div class="sp-chip"><b id="spPct">–</b><span>KEPATUHAN</span></div></div>
+    <button class="sp-btn sp-pri" onclick="splashLogin()">🔐 Masuk sebagai Pengurus</button>
+    <button class="sp-btn sp-sec" onclick="closeSplash()">👀 Lihat sebagai Anggota</button>
+    <div class="sp-foot">Kas • Iuran • Kegiatan • Galeri — transparan untuk semua</div>
+  </div>
+</div>
 
 <header>
   <div class="headwrap">
@@ -528,7 +562,7 @@ const FIREBASE_STORAGE_BUCKET = "";   // cth: nama-project.appspot.com
 const FIREBASE_API_KEY = "";          // Web API Key (belum wajib dipakai)
 
 const DB_PATH = "axfc";               // root data (kompatibel dengan data versi lama)
-const APP_VER = "v2.2";
+const APP_VER = "v2.3";
 const DEFAULT_IURAN = 20000;
 
 const KAT_MASUK  = ['Iuran Bulanan','Saldo Awal','Donasi','Sponsor','Penjualan Merchandise','Denda','Lainnya'];
@@ -1222,14 +1256,27 @@ function renderAktivitas(){
 }
 
 /* ======================= INIT ======================= */
+
+/* ---------------- layar sambutan ---------------- */
+function splashStats(){
+  try{ const y=new Date().getFullYear(), ys=yearStats(y);
+    $('spMem').textContent=aktifArr().length; $('spSaldo').textContent=rupiah(totals(txArr()).saldo).replace(/\s/g,'');
+    const p=ys&&ys.pct!=null?ys.pct:(ys&&ys.target?Math.round(ys.collected/ys.target*100):null); $('spPct').textContent=p!=null?p+'%':'–'; }catch(e){}
+}
+function showSplash(){
+  if(session.admin) return; try{ if(sessionStorage.getItem('axfc_splash')) return; }catch(e){}
+  $('spLogo').src=$('logoImg').src; $('splash').style.display='flex'; document.body.style.overflow='hidden'; splashStats();
+}
+function closeSplash(){ try{ sessionStorage.setItem('axfc_splash','1'); }catch(e){} const sp=$('splash'); sp.classList.add('out'); document.body.style.overflow=''; setTimeout(()=>{ sp.style.display='none'; },460); }
+async function splashLogin(){ await openLogin(); const mo=$('loginBg'); const t=setInterval(()=>{ if(session.admin){ clearInterval(t); closeSplash(); } else if(!mo.classList.contains('active')){ clearInterval(t); } },300); }
 document.addEventListener('DOMContentLoaded', async ()=>{
   $('favicon').href=$('logoImg').src;
   document.querySelectorAll('#nav button').forEach(b=>b.addEventListener('click',()=>goView(b.dataset.view)));
   if(!cfgReady()) $('cfgBanner').style.display='block';
   $('lapBulan').value=thisMonth();
   if(!cfgReady()) loadSeedLocal();
-  restoreSession(); applyMode(); renderAll();
-  if(cfgReady()) await loadAll();
+  restoreSession(); applyMode(); renderAll(); showSplash();
+  if(cfgReady()){ await loadAll(); splashStats(); }
   document.addEventListener('visibilitychange',()=>{ if(!document.hidden && cfgReady() && !document.querySelector('.modal-bg.active')) loadAll(); });
 });
 if('serviceWorker' in navigator && location.protocol.startsWith('http')) window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
