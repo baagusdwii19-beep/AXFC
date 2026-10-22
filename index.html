@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="color-scheme" content="light only">
 <meta name="theme-color" content="#0b8a7c">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="AXFC">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>AXFC — Sistem Organisasi</title>
 <link rel="icon" id="favicon" href="">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1225,6 +1232,7 @@ document.addEventListener('DOMContentLoaded', async ()=>{
   if(cfgReady()) await loadAll();
   document.addEventListener('visibilitychange',()=>{ if(!document.hidden && cfgReady() && !document.querySelector('.modal-bg.active')) loadAll(); });
 });
+if('serviceWorker' in navigator && location.protocol.startsWith('http')) window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
 </script>
 </body>
 </html>
